@@ -17,7 +17,7 @@ Zero-Bot は Discord 上でのボイスチャンネルとテキストチャン�
 ### 🎙️ **おやんもコマンド**
 - `/おやんも [ユーザー] [(countdown)True / False]` ※countdownはデフォルト「False」
 - コマンドで指定ユーザーを寝落ち部屋へ移動
-- countdown=Trueでカウントダウン後に移動
+- countdown=Trueでカウントダウン(10秒)後に移動する
 - 完了メッセージをランダムで送信する機能をもつ
 - STOP ボタンで移動をキャンセル可能
 
