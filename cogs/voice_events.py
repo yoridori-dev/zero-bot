@@ -21,14 +21,11 @@ class VoiceEventsCog(commands.Cog):
 
         # **退室ログの処理**
         if before.channel:
-            voice_channel_name = before.channel.name
-            text_channel_name = f"{now}_{normalize_text_channel_name(voice_channel_name)}"
-            debug_log(f"[VOICE LEAVE] {member.display_name} が `{voice_channel_name}` から退出")
-
+            debug_log(f"[VOICE LEAVE] {member.display_name} が `{before.channel.name}` から退出")
             target_channel = await self.channel_manager.get_or_create_text_channel(guild, before.channel)
 
             embed = discord.Embed(
-                description=f"**{member.display_name}**（ID: `{member.id}`）が **{voice_channel_name}** から退出しました。",
+                description=f"**{member.display_name}**（ID: `{member.id}`）が **{before.channel.name}** から退出しました。",
                 color=0xE74C3C
             )
             embed.set_author(name=f"{member.display_name} さんの退出", icon_url=member.display_avatar.url)
@@ -38,14 +35,11 @@ class VoiceEventsCog(commands.Cog):
 
         # **入室ログの処理**
         if after.channel:
-            voice_channel_name = after.channel.name
-            text_channel_name = f"{now}_{normalize_text_channel_name(voice_channel_name)}"
-            debug_log(f"[VOICE JOIN] {member.display_name} が `{voice_channel_name}` に入室")
-
+            debug_log(f"[VOICE JOIN] {member.display_name} が `{after.channel.name}` に入室")
             target_channel = await self.channel_manager.get_or_create_text_channel(guild, after.channel)
 
             embed = discord.Embed(
-                description=f"**{member.display_name}**（ID: `{member.id}`）が **{voice_channel_name}** に入室しました。",
+                description=f"**{member.display_name}**（ID: `{member.id}`）が **{after.channel.name}** に入室しました。",
                 color=0x2ECC71
             )
             embed.set_author(name=f"{member.display_name} さんの入室", icon_url=member.display_avatar.url)
