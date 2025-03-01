@@ -2,8 +2,9 @@ import discord
 import datetime
 import pytz
 from discord.ext import commands
+from utils.helpers import normalize_text_channel_name
 from utils.channel_manager import ChannelManager
-from config import debug_log  # DEBUGログ用
+from config import CATEGORY_NAME, debug_log
 
 jst = pytz.timezone("Asia/Tokyo")
 
@@ -14,39 +15,41 @@ class VoiceEventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        """ボイスチャンネルの入室・退出ログを専用テキストチャンネルに書き込む"""
+        """ボイスチャンネルの入室・退出ログをテキストチャンネルに記録"""
         guild = member.guild
-        now = datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.datetime.now(jst).strftime("%Y%m%d")
 
-        debug_log(f"{now} - on_voice_state_update: {member.display_name} ({member.id})")
-        debug_log(f"    Before: {before.channel.name if before.channel else 'なし'}")
-        debug_log(f"    After : {after.channel.name if after.channel else 'なし'}")
+        # **退室ログの処理**
+        if before.channel:
+            voice_channel_name = before.channel.name
+            text_channel_name = f"{now}_{normalize_text_channel_name(voice_channel_name)}"
+            debug_log(f"[VOICE LEAVE] {member.display_name} が `{voice_channel_name}` から退出")
 
-        # 入室時
-        if after.channel and before.channel != after.channel:
-            debug_log(f"{member.display_name} が {after.channel.name} に入室しました")
-            target_channel = await self.channel_manager.get_or_create_text_channel(guild, after.channel)
-
-            embed = discord.Embed(
-                description=f"**{member.display_name}**（ID: `{member.id}`）が **{after.channel.name}** に入室しました。",
-                color=0x2ECC71
-            )
-            embed.set_author(name=f"{member.display_name} さんの入室", icon_url=member.display_avatar.url)
-            embed.set_footer(text=now)
-
-            await target_channel.send(embed=embed)
-
-        # 退出時
-        elif before.channel and after.channel is None:
-            debug_log(f"{member.display_name} が {before.channel.name} から退出しました")
             target_channel = await self.channel_manager.get_or_create_text_channel(guild, before.channel)
 
             embed = discord.Embed(
-                description=f"**{member.display_name}**（ID: `{member.id}`）が **{before.channel.name}** から退出しました。",
+                description=f"**{member.display_name}**（ID: `{member.id}`）が **{voice_channel_name}** から退出しました。",
                 color=0xE74C3C
             )
             embed.set_author(name=f"{member.display_name} さんの退出", icon_url=member.display_avatar.url)
-            embed.set_footer(text=now)
+            embed.set_footer(text=datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S"))
+
+            await target_channel.send(embed=embed)
+
+        # **入室ログの処理**
+        if after.channel:
+            voice_channel_name = after.channel.name
+            text_channel_name = f"{now}_{normalize_text_channel_name(voice_channel_name)}"
+            debug_log(f"[VOICE JOIN] {member.display_name} が `{voice_channel_name}` に入室")
+
+            target_channel = await self.channel_manager.get_or_create_text_channel(guild, after.channel)
+
+            embed = discord.Embed(
+                description=f"**{member.display_name}**（ID: `{member.id}`）が **{voice_channel_name}** に入室しました。",
+                color=0x2ECC71
+            )
+            embed.set_author(name=f"{member.display_name} さんの入室", icon_url=member.display_avatar.url)
+            embed.set_footer(text=datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S"))
 
             await target_channel.send(embed=embed)
 
