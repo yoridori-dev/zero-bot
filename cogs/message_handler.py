@@ -2,61 +2,45 @@ import discord
 import datetime
 import pytz
 from discord.ext import commands
-from utils.helpers import normalize_text_channel_name
-from config import CATEGORY_NAME
+from utils.channel_manager import ChannelManager
+from config import debug_log  # DEBUGログ用
 
 jst = pytz.timezone("Asia/Tokyo")
 
 class MessageHandlerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.channel_manager = ChannelManager(bot)
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        """ボイスチャンネル (`discord.VoiceChannel`) に書かれたメッセージのみ転記"""
-        print(f"[DEBUG] メッセージ受信: {message.content} （送信者: {message.author.display_name}）")
+        """ボイスチャンネルのテキストチャットのメッセージのみ転記"""
+        now = datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")
+
+        debug_log(f"{now} - on_message: {message.author.display_name} ({message.author.id})")
+        debug_log(f"    チャンネル: {message.channel.name} ({message.channel.id})")
+        debug_log(f"    メッセージ: {message.content}")
 
         if message.author.bot:
-            print("[DEBUG] ボットのメッセージなので無視")
-            return  # ボットのメッセージは無視
+            debug_log(f"{message.author.display_name} のメッセージはBOTのため無視")
+            return
 
         guild = message.guild
         if guild is None:
-            print("[DEBUG] ギルド情報が取得できません。")
+            debug_log(f"ギルド情報が取得できないため無視")
             return
 
-        now = datetime.datetime.now(jst).strftime("%Y%m%d")
-
-        # メッセージがボイスチャンネル (`discord.VoiceChannel`) に書かれたものか判定
         if not isinstance(message.channel, discord.VoiceChannel):
-            print(f"[DEBUG] {message.channel.name} はボイスチャンネルではないため無視します。")
-            return  # ボイスチャンネル以外のメッセージは無視
+            debug_log(f"{message.channel.name} はボイスチャンネルではないため無視")
+            return  
 
-        print(f"[DEBUG] {message.channel.name} はボイスチャンネルに書かれたメッセージです。転記処理を開始します。")
+        target_channel = await self.channel_manager.get_or_create_text_channel(guild, message.channel)
+        debug_log(f"転記先チャンネル: {target_channel.name} ({target_channel.id})")
 
-        # 転記先のテキストチャンネル名を `"yyyymmdd_転送元ボイスチャンネル名"` の形式で作成
-        new_channel_name = f"{now}_{normalize_text_channel_name(message.channel.name)}"
-        print(f"[DEBUG] 転記先チャンネル名: {new_channel_name}")
-
-        # 転記先のカテゴリを取得または作成
-        category = discord.utils.get(guild.categories, name=CATEGORY_NAME)
-        if category is None:
-            print(f"[DEBUG] カテゴリ {CATEGORY_NAME} が存在しません。新規作成します。")
-            category = await guild.create_category(CATEGORY_NAME)
-
-        # 転記先のテキストチャンネルを取得または作成
-        target_channel = discord.utils.get(category.text_channels, name=new_channel_name)
-        if target_channel is None:
-            print(f"[DEBUG] 転記先チャンネル {new_channel_name} が存在しないため作成")
-            target_channel = await guild.create_text_channel(new_channel_name, category=category)
-
-        # 投稿日時を JST に変換
         message_time_jst = message.created_at.replace(tzinfo=pytz.utc).astimezone(jst).strftime("%Y/%m/%d %H:%M:%S")
 
-        # 画像URLリストを取得
         image_urls = [attachment.url for attachment in message.attachments]
 
-        # 最初の `embed`（本文 + 1枚目の画像）
         embed = discord.Embed(
             description=message.content,
             color=0x82cded,
@@ -66,15 +50,12 @@ class MessageHandlerCog(commands.Cog):
             icon_url=message.author.display_avatar.url
         )
 
-        # 1枚目の画像があればセット
         if image_urls:
             embed.set_image(url=image_urls[0])
 
-        print(f"[DEBUG] メッセージ転記: {message.content} (画像数: {len(image_urls)})")
+        await target_channel.send(embed=embed)
+        debug_log(f"メッセージを転記完了: {message.content}")
 
-        await target_channel.send(embed=embed)  # 最初の `embed` を送信
-
-        # 2枚目以降の画像がある場合、それぞれ新しい `embed` で送信
         for img_url in image_urls[1:]:
             image_embed = discord.Embed(
                 color=0x82cded,
@@ -85,9 +66,9 @@ class MessageHandlerCog(commands.Cog):
             )
             image_embed.set_image(url=img_url)
 
-            await target_channel.send(embed=image_embed)  # 2枚目以降の `embed` を送信
+            await target_channel.send(embed=image_embed)
+            debug_log(f"追加の画像を転記: {img_url}")
 
-        print(f"[DEBUG] メッセージ転記完了: {message.content}")
         await self.bot.process_commands(message)
 
 async def setup(bot):

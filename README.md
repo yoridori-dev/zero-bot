@@ -28,11 +28,15 @@ Zero-Bot は Discord 上でのボイスチャンネルとテキストチャン�
 
 ## 🛠️ **セットアップ方法**
 
-### 1️⃣ **必要な環境を準備**
+### １． **必要な環境を準備**
 - Python 3.8 以上
 - Discord API トークン
 - Google Drive API 設定 (`client_secrets.json`)
 
-### 2️⃣ **必要なライブラリをインストール**
+### ２． **必要なライブラリをインストール**
 ```sh
 pip install -r requirements.txt
+```
+
+### ３． **.envファイルについて**
+- DiscordのTOKEN等の機密情報が入っているので、開発者から直接受け取ってください

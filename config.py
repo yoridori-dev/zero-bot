@@ -17,3 +17,11 @@ intents.message_content = True
 intents.members = True
 intents.voice_states = True
 intents.guilds = True
+
+# デバッグログ出力
+DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"
+
+def debug_log(message):
+    """DEBUG_MODE が True のときのみログを出力"""
+    if DEBUG_MODE:
+        print(f"[DEBUG] {message}")
