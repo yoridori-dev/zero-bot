@@ -1,83 +1,120 @@
 import discord
-import os
-import asyncio
+from discord import app_commands
+from discord.ext import commands
 import datetime
 import pytz
-from discord.ext import commands, tasks
-from utils.drive_uploader import upload_to_drive
-from config import ARCHIVE_CATEGORY_NAME, GOOGLE_DRIVE_FOLDER_ID, TARGET_GUILD_ID
+import re
+import os
+import asyncio
+from config import CATEGORY_NAME, debug_log
 
-jst = pytz.timezone("Asia/Tokyo")  # 日本時間設定
+jst = pytz.timezone("Asia/Tokyo")
 
-class ArchiveManager(commands.Cog):
+class ArchiveManagerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.archive_task.start()  # ✅ Bot起動時にスケジュール実行
 
-    def cog_unload(self):
-        self.archive_task.cancel()
-
-    @tasks.loop(time=datetime.time(hour=23, minute=45, tzinfo=jst))
-    async def archive_task(self):
-        """毎日 23:45 に特定のサーバーのみアーカイブを実行"""
-        print(f"[DEBUG] アーカイブ処理を開始（対象サーバー: {TARGET_GUILD_ID}）")
-
-        guild = self.bot.get_guild(TARGET_GUILD_ID)  # ✅ 指定したサーバーを取得
+    @app_commands.command(name="delete_archive", description="指定した日付（yyyymmdd）以前のアーカイブを削除")
+    @app_commands.describe(date="削除対象の日付（yyyymmdd）")
+    async def delete_archive(self, interaction: discord.Interaction, date: str):
+        guild = interaction.guild
         if guild is None:
-            print(f"[ERROR] 指定されたサーバー {TARGET_GUILD_ID} が見つかりません。")
+            await interaction.response.send_message("エラー: サーバー情報が取得できません。", ephemeral=True)
             return
 
-        category = discord.utils.get(guild.categories, name=ARCHIVE_CATEGORY_NAME)
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("⛔ このコマンドは管理者のみ実行可能です。", ephemeral=True)
+            return
+
+        if not re.match(r"^\d{8}$", date):
+            await interaction.response.send_message("❌ 無効な日付フォーマットです。`yyyymmdd` 形式で指定してください。", ephemeral=True)
+            return
+
+        try:
+            threshold_date = datetime.datetime.strptime(date, "%Y%m%d").replace(tzinfo=jst)
+        except ValueError:
+            await interaction.response.send_message("❌ 無効な日付です。正しい `yyyymmdd` 形式で指定してください。", ephemeral=True)
+            return
+
+        debug_log(f"[DELETE ARCHIVE] `{date}` 以前のアーカイブチャンネルを削除します")
+
+        category = discord.utils.get(guild.categories, name=CATEGORY_NAME)
         if category is None:
-            print(f"[DEBUG] カテゴリ {ARCHIVE_CATEGORY_NAME} が見つかりません。")
-            return  # アーカイブカテゴリがない場合はスキップ
-
-        today = datetime.datetime.now(jst).strftime("%Y%m%d")
-        yesterday = (datetime.datetime.now(jst) - datetime.timedelta(days=1)).strftime("%Y%m%d")
-
-        for channel in category.text_channels:
-            if not channel.name.startswith(today) and not channel.name.startswith(yesterday):
-                await self.archive_channel(channel)
-
-    async def archive_channel(self, channel):
-        """チャンネルの内容を取得し、Google Drive にアップロード後、削除"""
-        print(f"[DEBUG] {channel.name} をアーカイブ処理")
-
-        messages = await self.fetch_channel_messages(channel)
-        if not messages:
-            print(f"[DEBUG] {channel.name} に保存するメッセージがありません。")
+            await interaction.response.send_message(f"⚠ `{CATEGORY_NAME}` カテゴリーが見つかりません。", ephemeral=True)
             return
 
-        md_content = self.format_messages_as_md(messages)
-        file_name = f"{channel.name}.md"
-        file_path = f"/tmp/{file_name}"  # 一時ファイル
+        channels_to_delete = []
+        for channel in category.text_channels:
+            match = re.match(r"^(\d{8})_", channel.name)
+            if match:
+                channel_date_str = match.group(1)
+                try:
+                    channel_date = datetime.datetime.strptime(channel_date_str, "%Y%m%d").replace(tzinfo=jst)
+                    if channel_date <= threshold_date:
+                        channels_to_delete.append(channel)
+                except ValueError:
+                    continue
 
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.write(md_content)
+        if not channels_to_delete:
+            await interaction.response.send_message(f"✅ `{date}` 以前の削除対象チャンネルはありませんでした。", ephemeral=True)
+            return
 
-        # ✅ Google Drive へアップロード
-        upload_success = upload_to_drive(file_path, GOOGLE_DRIVE_FOLDER_ID)
-        if upload_success:
-            print(f"[DEBUG] {file_name} を Google Drive にアップロード完了")
-            await channel.delete()
-            print(f"[DEBUG] チャンネル {channel.name} を削除しました")
-        else:
-            print(f"[ERROR] Google Drive へのアップロードに失敗しました: {file_name}")
+        await interaction.response.defer()
+        confirm_msg = await interaction.followup.send(
+            f"⚠ `{date}` 以前の `{len(channels_to_delete)}` 件のアーカイブチャンネルを削除します。実行してもよろしいですか？",
+            view=DeleteConfirmView(self.bot, interaction, channels_to_delete)
+        )
+        self.bot.confirmation_messages[interaction.id] = confirm_msg
 
-    async def fetch_channel_messages(self, channel):
-        """チャンネルの全メッセージを取得"""
-        messages = []
-        async for message in channel.history(limit=1000, oldest_first=True):
-            messages.append(message)
-        return messages
+class DeleteConfirmView(discord.ui.View):
+    def __init__(self, bot, interaction, channels_to_delete):
+        super().__init__(timeout=30)
+        self.bot = bot
+        self.interaction = interaction
+        self.channels_to_delete = channels_to_delete
 
-    def format_messages_as_md(self, messages):
-        """メッセージを Markdown 形式に変換"""
-        md_content = ""
-        for msg in messages:
-            timestamp = msg.created_at.astimezone(jst).strftime("%Y-%m-%d %H:%M:%S")
-            md_content += f"**{msg.author.display_name}** [{timestamp}]:\n{msg.content}\n\n"
-        return md_content
+    async def delete_original_message(self):
+        """確認メッセージを削除"""
+        confirm_msg = self.bot.confirmation_messages.pop(self.interaction.id, None)
+        if confirm_msg:
+            try:
+                await confirm_msg.delete()
+            except discord.NotFound:
+                pass
+
+    @discord.ui.button(label="削除", style=discord.ButtonStyle.danger)
+    async def confirm_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+
+        if interaction.user != self.interaction.user:
+            await interaction.followup.send("❌ 実行者のみが削除を確定できます。", ephemeral=True)
+            return
+
+        deleted_count = 0
+        for channel in self.channels_to_delete:
+            try:
+                await channel.delete()
+                deleted_count += 1
+                debug_log(f"[ARCHIVE DELETED] {channel.name} を削除しました。")
+            except discord.Forbidden:
+                await self.interaction.followup.send(f"❌ `{channel.name}` の削除権限がありません。")
+            except Exception as e:
+                debug_log(f"⚠ {channel.name} の削除に失敗: {e}")
+
+        await self.delete_original_message()  # ✅ 確認メッセージを削除
+        await interaction.followup.send(f"✅ `{deleted_count}` 件のアーカイブチャンネルを削除しました。")
+
+    @discord.ui.button(label="キャンセル", style=discord.ButtonStyle.secondary)
+    async def cancel_delete(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+
+        if interaction.user != self.interaction.user:
+            await interaction.followup.send("❌ 実行者のみがキャンセルできます。", ephemeral=True)
+            return
+
+        await self.delete_original_message()  # ✅ 確認メッセージを削除
+        await interaction.followup.send("⛔ 削除をキャンセルしました。", ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(ArchiveManager(bot))
+    bot.confirmation_messages = {}  # ✅ メッセージ管理用辞書を追加
+    await bot.add_cog(ArchiveManagerCog(bot))
