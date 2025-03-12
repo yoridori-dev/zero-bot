@@ -12,6 +12,12 @@ STOP_BUTTON_ONLY_COMMAND_USER = os.getenv("STOP_BUTTON_ONLY_COMMAND_USER", "Fals
 GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 TARGET_GUILD_ID = int(os.getenv("TARGET_GUILD_ID", "0"))
 
+# 転記対象外とするカテゴリー（ID で指定）
+EXCLUDED_CATEGORY_IDS = [
+    1190510055376818217,  # 管理者専用
+    1348635643118354443,  # LAB
+]
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True

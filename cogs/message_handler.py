@@ -3,7 +3,7 @@ import datetime
 import pytz
 from discord.ext import commands
 from utils.channel_manager import ChannelManager
-from config import debug_log  # DEBUGログ用
+from config import debug_log, EXCLUDED_CATEGORY_IDS  # ✅ 除外カテゴリーIDを追加
 
 jst = pytz.timezone("Asia/Tokyo")
 
@@ -11,6 +11,10 @@ class MessageHandlerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.channel_manager = ChannelManager(bot)
+
+    def is_excluded(self, channel):
+        """チャンネルが除外カテゴリーに属しているかを確認"""
+        return channel and channel.category and channel.category.id in EXCLUDED_CATEGORY_IDS
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -32,7 +36,11 @@ class MessageHandlerCog(commands.Cog):
 
         if not isinstance(message.channel, discord.VoiceChannel):
             debug_log(f"{message.channel.name} はボイスチャンネルではないため無視")
-            return  
+            return
+
+        if self.is_excluded(message.channel):
+            debug_log(f"[SKIP] `{message.channel.name}` は除外カテゴリー (`{message.channel.category.id}`) に属するため無視")
+            return
 
         target_channel = await self.channel_manager.get_or_create_text_channel(guild, message.channel)
         debug_log(f"転記先チャンネル: {target_channel.name} ({target_channel.id})")
@@ -69,6 +77,7 @@ class MessageHandlerCog(commands.Cog):
             await target_channel.send(embed=image_embed)
             debug_log(f"追加の画像を転記: {img_url}")
 
+        print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][MESSAGE][{message.channel.name}][{message.author.display_name}] {message.content}")
         await self.bot.process_commands(message)
 
 async def setup(bot):
