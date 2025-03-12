@@ -15,7 +15,8 @@ TARGET_GUILD_ID = int(os.getenv("TARGET_GUILD_ID", "0"))
 # 転記対象外とするカテゴリー（ID で指定）
 EXCLUDED_CATEGORY_IDS = [
     1190510055376818217,  # 管理者専用
-    1348635643118354443,  # LAB
+    1348635643118354443,  # LABテスト用
+    1153343627100176404,  # 面談室
 ]
 
 intents = discord.Intents.default()
