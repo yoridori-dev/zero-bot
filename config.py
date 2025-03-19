@@ -19,6 +19,12 @@ EXCLUDED_CATEGORY_IDS = [
     1153343627100176404,  # 面談室
 ]
 
+# プロフ転記元
+MESSAGE_SOURCE_CHANNEL_IDS = [
+    1351733661229256714,  # メッセージ取得対象のチャンネル1
+    1351733699745546291,  # メッセージ取得対象のチャンネル2
+]
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True

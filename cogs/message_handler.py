@@ -21,6 +21,12 @@ class MessageHandlerCog(commands.Cog):
         """ボイスチャンネルのテキストチャットのメッセージのみ転記"""
         now = datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")
 
+        print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][MESSAGE][{message.channel.name}][{message.author.display_name}] {message.content}")
+
+        image_urls = [attachment.url for attachment in message.attachments]
+        if image_urls:
+            print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][IMAGE][{message.channel.name}][{message.author.display_name}] {image_urls[0]}")
+
         debug_log(f"{now} - on_message: {message.author.display_name} ({message.author.id})")
         debug_log(f"    チャンネル: {message.channel.name} ({message.channel.id})")
         debug_log(f"    メッセージ: {message.content}")
@@ -46,8 +52,6 @@ class MessageHandlerCog(commands.Cog):
         debug_log(f"転記先チャンネル: {target_channel.name} ({target_channel.id})")
 
         message_time_jst = message.created_at.replace(tzinfo=pytz.utc).astimezone(jst).strftime("%Y/%m/%d %H:%M:%S")
-
-        image_urls = [attachment.url for attachment in message.attachments]
 
         embed = discord.Embed(
             description=message.content,
@@ -77,7 +81,6 @@ class MessageHandlerCog(commands.Cog):
             await target_channel.send(embed=image_embed)
             debug_log(f"追加の画像を転記: {img_url}")
 
-        print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][MESSAGE][{message.channel.name}][{message.author.display_name}] {message.content}")
         await self.bot.process_commands(message)
 
 async def setup(bot):
