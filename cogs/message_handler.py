@@ -1,11 +1,42 @@
 import discord
 import datetime
 import pytz
+import os
+import logging
 from discord.ext import commands
 from utils.channel_manager import ChannelManager
-from config import debug_log, EXCLUDED_CATEGORY_IDS  # ✅ 除外カテゴリーIDを追加
+from config import debug_log, EXCLUDED_CATEGORY_IDS
 
+# タイムゾーン設定
 jst = pytz.timezone("Asia/Tokyo")
+
+# ログ保存ディレクトリとファイルパス
+log_dir = "log"
+os.makedirs(log_dir, exist_ok=True)
+today_str = datetime.datetime.now(jst).strftime("%Y%m%d")
+log_file_path = os.path.join(log_dir, f"message_handler_{today_str}.log")
+
+# ログローテート処理（3日より古いログを削除）
+for fname in os.listdir(log_dir):
+    if fname.startswith("message_handler_") and fname.endswith(".log"):
+        try:
+            date_str = fname.replace("message_handler_", "").replace(".log", "")
+            file_date = datetime.datetime.strptime(date_str, "%Y%m%d")
+            if (datetime.datetime.now(jst) - file_date).days > 2:
+                os.remove(os.path.join(log_dir, fname))
+        except Exception:
+            continue
+
+# ログ設定（ファイル出力）
+logger = logging.getLogger("message_handler")
+logger.setLevel(logging.INFO)
+
+# 重複防止
+if not logger.handlers:
+    file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 class MessageHandlerCog(commands.Cog):
     def __init__(self, bot):
@@ -21,11 +52,10 @@ class MessageHandlerCog(commands.Cog):
         """ボイスチャンネルのテキストチャットのメッセージのみ転記"""
         now = datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")
 
-        print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][MESSAGE][{message.channel.name}][{message.author.display_name}] {message.content}")
-
+        logger.info(f"[MESSAGE][{message.channel.name}][{message.author.display_name}] {message.content}")
         image_urls = [attachment.url for attachment in message.attachments]
         if image_urls:
-            print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][IMAGE][{message.channel.name}][{message.author.display_name}] {image_urls[0]}")
+            logger.info(f"[IMAGE][{message.channel.name}][{message.author.display_name}] {image_urls[0]}")
 
         debug_log(f"{now} - on_message: {message.author.display_name} ({message.author.id})")
         debug_log(f"    チャンネル: {message.channel.name} ({message.channel.id})")
@@ -37,7 +67,7 @@ class MessageHandlerCog(commands.Cog):
 
         guild = message.guild
         if guild is None:
-            debug_log(f"ギルド情報が取得できないため無視")
+            debug_log("ギルド情報が取得できないため無視")
             return
 
         if not isinstance(message.channel, discord.VoiceChannel):

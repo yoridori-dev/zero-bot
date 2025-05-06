@@ -1,5 +1,4 @@
 import discord
-import random
 from discord import app_commands
 from discord.ext import commands
 from utils.helpers import voice_users_autocomplete
@@ -31,32 +30,22 @@ class OyanmoCog(commands.Cog):
             await interaction.followup.send(f"❌ `{username}`: 指定されたボイスチャンネルが見つかりません。")
             return
 
-        # **最初のメッセージを送信**
+        # 初期表示
         embed = discord.Embed(
             title="おやんも実行",
             description=f"`{target_member.display_name}` を寝落ち部屋へ移動させます。",
             color=0x5865F2
         )
-        response_message = await interaction.followup.send(embed=embed)
+        response_message = await interaction.followup.send(embed=embed, wait=True)
 
         if countdown:
-            countdown_msg = await countdown_procedure(interaction, target_member, target_channel)
+            await countdown_procedure(interaction, target_member, target_channel, response_message)
 
-            # **STOPボタンが押された場合**
-            if not countdown_active.get(target_member.id, False):
-                embed.description = f"⏹ `{target_member.display_name}` の移動を中止しました！"
-                embed.color = 0xFF4500  # オレンジ
-                await response_message.edit(embed=embed, view=None)
-                return
-
-        # **移動実行**
-        await target_member.move_to(target_channel)
-
-        # **移動完了メッセージをランダムで取得してメッセージを編集**
-        success_message = get_random_success_message(target_member.display_name)
-        embed.description = success_message
-        embed.color = 0x32CD32  # 緑
-        await response_message.edit(embed=embed, view=None)
+        else:
+            await target_member.move_to(target_channel)
+            embed.description = get_random_success_message(target_member.display_name)
+            embed.color = 0x32CD32
+            await response_message.edit(embed=embed, view=None)
 
 async def setup(bot):
     await bot.add_cog(OyanmoCog(bot))

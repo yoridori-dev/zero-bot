@@ -13,7 +13,7 @@ class VoiceEventsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.channel_manager = ChannelManager(bot)
-        self.join_message_tracking = {}
+        self.join_message_tracking = {}  # {ユーザーID: (テキストチャンネルID, メッセージID)}
 
     def is_excluded(self, channel):
         """チャンネルが指定されたカテゴリー ID のいずれかに属しているか確認"""
@@ -21,10 +21,10 @@ class VoiceEventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        """ボイスチャンネルの入室・退出ログをテキストチャンネルに記録（ミュート・カメラ変更は無視）"""
+        """ボイスチャンネルの入室・退出ログをテキストチャンネルに記録"""
         guild = member.guild
 
-        # **入室ログの処理**
+        # **入室ログ**
         if after.channel and before.channel != after.channel:
             print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][VOICE JOIN ] {member.display_name} が `{after.channel.name}` に入室")
             debug_log(f"[VOICE JOIN] {member.display_name} が `{after.channel.name}` に入室")
@@ -43,10 +43,13 @@ class VoiceEventsCog(commands.Cog):
 
                 await target_channel.send(embed=embed)
 
-            # 指定チャンネル群からユーザーのメッセージを検索し、転記
+                # **入室メッセージのIDを保存**
+                self.join_message_tracking[member.id] = (target_channel.id, message.id)
+
+            # 指定チャンネルからユーザーのメッセージリンクを取得して転記
             await self.post_user_recent_message_link(member, after.channel)
 
-        # **退室ログの処理（移動時も記録する）**
+        # **退室ログ**
         if before.channel and before.channel != after.channel:
             print(f"[{datetime.datetime.now(jst).strftime("%Y-%m-%d %H:%M:%S")}][VOICE LEAVE] {member.display_name} が `{before.channel.name}` から退出")
             debug_log(f"[VOICE LEAVE] {member.display_name} が `{before.channel.name}` から退出")
@@ -66,10 +69,24 @@ class VoiceEventsCog(commands.Cog):
                 await target_channel.send(embed=embed)
 
                 # **入室時のメッセージを削除**
-                await self.delete_join_message(before.channel, member)
+                await self.delete_join_message(member)
+
+    async def delete_join_message(self, member):
+        """退室時に、入室時に記録したメッセージを削除"""
+        if member.id in self.join_message_tracking:
+            channel_id, message_id = self.join_message_tracking.pop(member.id)
+            channel = self.bot.get_channel(channel_id)
+
+            if channel:
+                try:
+                    join_message = await channel.fetch_message(message_id)
+                    await join_message.delete()
+                    debug_log(f"[DELETE MESSAGE] `{member.display_name}` の入室時のメッセージを削除しました")
+                except discord.NotFound:
+                    debug_log(f"[DELETE FAILED] `{member.display_name}` のメッセージが見つかりませんでした")
 
     async def find_latest_message_link(self, member):
-        """複数のメッセージチャンネルから、指定ユーザーの最新メッセージリンクを取得"""
+        """指定ユーザーの最新メッセージリンクを取得"""
         for channel_id in MESSAGE_SOURCE_CHANNEL_IDS:
             message_source_channel = self.bot.get_channel(channel_id)
             if not message_source_channel:
@@ -80,28 +97,16 @@ class VoiceEventsCog(commands.Cog):
                 if message.author.id == member.id:
                     message_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}"
                     debug_log(f"[FOUND MESSAGE] `{member.display_name}` のメッセージを `{message.channel.name}` で発見")
-                    return message_link  # 最初に見つかったメッセージのリンクを返す
+                    return message_link
 
-        debug_log(f"[NO MESSAGE] `{member.display_name}` のメッセージがいずれのチャンネルにも見つかりませんでした")
+        debug_log(f"[NO MESSAGE] `{member.display_name}` のメッセージが見つかりませんでした")
         return None
-
-    async def delete_join_message(self, target_channel, member):
-        print("self.join_message_tracking :        " + self.join_message_tracking)
-        """退室時に、入室時に記録したメッセージを削除"""
-        if member.id in self.join_message_tracking:
-            message_id = self.join_message_tracking.pop(member.id)  # **IDを取得し、辞書から削除**
-            try:
-                join_message = await target_channel.fetch_message(message_id)
-                await join_message.delete()
-                debug_log(f"[DELETE MESSAGE] `{member.display_name}` の入室時のメッセージを削除しました")
-            except discord.NotFound:
-                debug_log(f"[DELETE FAILED] `{member.display_name}` のメッセージが見つかりませんでした")
 
     async def post_user_recent_message_link(self, member, target_channel):
         """指定チャンネルから取得したメッセージリンクを転記"""
         message_link = await self.find_latest_message_link(member)
         if not message_link:
-            return  # メッセージが見つからなかった場合は何もしない
+            return
 
         intro_messages = [
             "はい、ぷろふぃーゆあげゆ",
