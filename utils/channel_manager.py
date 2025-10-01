@@ -21,11 +21,11 @@ class ChannelManager:
         """Bot の起動時にキャッシュクリアタスクを開始"""
         if self.cleanup_task is None:
             self.cleanup_task = asyncio.create_task(self.cleanup_old_cache())
-        debug_log("[TASK] キャッシュクリアタスクを開始")
+        # debug_log("[TASK] キャッシュクリアタスクを開始")
 
     async def get_or_create_text_channel(self, guild, voice_channel):
         """ボイスチャンネルに紐づくテキストチャンネルを取得または作成"""
-        debug_log(f"[GET_CHANNEL] {voice_channel.name} に対応するテキストチャンネルを取得または作成")
+        # debug_log(f"[GET_CHANNEL] {voice_channel.name} に対応するテキストチャンネルを取得または作成")
 
         category = discord.utils.get(guild.categories, name=CATEGORY_NAME)
 
@@ -36,7 +36,7 @@ class ChannelManager:
         today_date = datetime.datetime.now(jst).strftime("%Y%m%d")
         expected_channel_name = f"{today_date}_{normalize_text_channel_name(voice_channel.name)}"
 
-        debug_log(f"[EXPECTED_NAME] 期待するテキストチャンネル名: `{expected_channel_name}`")
+        # debug_log(f"[EXPECTED_NAME] 期待するテキストチャンネル名: `{expected_channel_name}`")
 
         # キャッシュの取得と日付のチェック
         cached_channel = self.voice_text_mapping.get(voice_channel.id)
@@ -45,20 +45,20 @@ class ChannelManager:
             cached_date = match.group(1) if match else None
 
             if cached_date == today_date:
-                debug_log(f"[CACHE_HIT] `{voice_channel.name}` のテキストチャンネルはキャッシュ済み: `{cached_channel.name}`")
+                # debug_log(f"[CACHE_HIT] `{voice_channel.name}` のテキストチャンネルはキャッシュ済み: `{cached_channel.name}`")
                 return cached_channel
             else:
-                debug_log(f"[CACHE_MISMATCH] キャッシュの日付 `{cached_date}` が現在 `{today_date}` と異なるため、キャッシュを無効化")
+                # debug_log(f"[CACHE_MISMATCH] キャッシュの日付 `{cached_date}` が現在 `{today_date}` と異なるため、キャッシュを無効化")
                 del self.voice_text_mapping[voice_channel.id]
 
         # 既存のテキストチャンネルを検索
         target_channel = discord.utils.get(category.text_channels, name=expected_channel_name)
 
         if target_channel:
-            debug_log(f"[EXISTING_CHANNEL] 既存のテキストチャンネル `{expected_channel_name}` を使用")
+            # debug_log(f"[EXISTING_CHANNEL] 既存のテキストチャンネル `{expected_channel_name}` を使用")
             self.voice_text_mapping[voice_channel.id] = target_channel
         else:
-            debug_log(f"[NEW_CHANNEL] テキストチャンネル `{expected_channel_name}` を新規作成")
+            # debug_log(f"[NEW_CHANNEL] テキストチャンネル `{expected_channel_name}` を新規作成")
             target_channel = await guild.create_text_channel(expected_channel_name, category=category)
             await target_channel.send(f"このテキストチャンネルは <#{voice_channel.id}> に紐づいています。")
             self.voice_text_mapping[voice_channel.id] = target_channel
@@ -68,10 +68,10 @@ class ChannelManager:
             removed_channel_id = next(iter(self.voice_text_mapping))
             removed_channel_name = self.voice_text_mapping[removed_channel_id].name
             del self.voice_text_mapping[removed_channel_id]
-            debug_log(f"[CACHE_CLEANUP] キャッシュサイズ超過のため `{removed_channel_name}` を削除")
+            # debug_log(f"[CACHE_CLEANUP] キャッシュサイズ超過のため `{removed_channel_name}` を削除")
 
         # 現在のキャッシュ状態をログに出力
-        debug_log(f"[CACHE_STATE] 現在のキャッシュ: {self._format_cache_state()}")
+        # debug_log(f"[CACHE_STATE] 現在のキャッシュ: {self._format_cache_state()}")
 
         return target_channel
 
@@ -99,10 +99,10 @@ class ChannelManager:
                         removed_channel_name = self.voice_text_mapping[removed_channel_id].name
                         del self.voice_text_mapping[removed_channel_id]
 
-                    debug_log(f"[CACHE_CLEANUP] キャッシュサイズが上限 ({self.max_cache_size}) を超えたため、{excess} 件を削除しました")
+                    # debug_log(f"[CACHE_CLEANUP] キャッシュサイズが上限 ({self.max_cache_size}) を超えたため、{excess} 件を削除しました")
 
                 # キャッシュクリア後の状態を出力
-                debug_log(f"[CACHE_STATE] キャッシュクリア後の状態: {self._format_cache_state()}")
+                # debug_log(f"[CACHE_STATE] キャッシュクリア後の状態: {self._format_cache_state()}")
 
         except asyncio.CancelledError:
             debug_log("[CLEANUP TASK] Bot の終了を検知、タスクを停止します")
@@ -110,7 +110,7 @@ class ChannelManager:
     async def stop_cleanup_task(self):
         """Bot のシャットダウン時にタスクを停止"""
         if self.cleanup_task:
-            debug_log("[CLEANUP TASK] タスクをキャンセルします")
+            # debug_log("[CLEANUP TASK] タスクをキャンセルします")
             self.cleanup_task.cancel()
             try:
                 await self.cleanup_task

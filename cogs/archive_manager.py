@@ -14,9 +14,9 @@ class ArchiveManagerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="delete_archive", description="指定した日付（yyyymmdd）以前のアーカイブを削除")
-    @app_commands.describe(date="削除対象の日付（yyyymmdd）")
-    async def delete_archive(self, interaction: discord.Interaction, date: str):
+    @app_commands.command(name="manage_comment", description="管理者用コマンド")
+    @app_commands.describe(date="（yyyymmdd）")
+    async def manage_comment(self, interaction: discord.Interaction, date: str):
         guild = interaction.guild
         if guild is None:
             await interaction.response.send_message("エラー: サーバー情報が取得できません。", ephemeral=True)

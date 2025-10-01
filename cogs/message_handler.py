@@ -57,12 +57,12 @@ class MessageHandlerCog(commands.Cog):
         if image_urls:
             logger.info(f"[IMAGE][{message.channel.name}][{message.author.display_name}] {image_urls[0]}")
 
-        debug_log(f"{now} - on_message: {message.author.display_name} ({message.author.id})")
-        debug_log(f"    チャンネル: {message.channel.name} ({message.channel.id})")
-        debug_log(f"    メッセージ: {message.content}")
+        # debug_log(f"{now} - on_message: {message.author.display_name} ({message.author.id})")
+        # debug_log(f"    チャンネル: {message.channel.name} ({message.channel.id})")
+        # debug_log(f"    メッセージ: {message.content}")
 
         if message.author.bot:
-            debug_log(f"{message.author.display_name} のメッセージはBOTのため無視")
+            # debug_log(f"{message.author.display_name} のメッセージはBOTのため無視")
             return
 
         guild = message.guild

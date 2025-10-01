@@ -21,8 +21,13 @@ EXCLUDED_CATEGORY_IDS = [
 
 # プロフ転記元
 MESSAGE_SOURCE_CHANNEL_IDS = [
-    # 1351733661229256714,  # メッセージ取得対象のチャンネル1
-    # 1351733699745546291,  # メッセージ取得対象のチャンネル2
+    1146511568922755102,  # 女性プロフィール
+    1146511242396188802,  # 男性プロフィール
+]
+
+# 退出時のメッセージ削除処理をスキップするカテゴリーID一覧
+LEAVE_MESSAGE_DELETE_EXCLUDED_CATEGORY_IDS = [
+    1239840073927888906,  # イベント用
 ]
 
 intents = discord.Intents.default()

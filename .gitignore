@@ -1,3 +1,4 @@
 .env
 **/__pycache__/**
 log
+profile_messages.json
