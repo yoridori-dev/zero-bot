@@ -6,6 +6,7 @@ import json
 import os
 
 PROFILE_MESSAGE_PATH = "profile_messages.json"
+EXCLUDED_VOICE_CHANNEL_IDS=[1426392389374836826, 1252161804147232779]
 
 def load_profile_messages():
     if os.path.exists(PROFILE_MESSAGE_PATH):
@@ -41,9 +42,18 @@ async def voice_users_autocomplete(interaction: discord.Interaction, current: st
         return []
 
     voice_members = []
+    current_lower = (current or "").lower()
+
+    print(EXCLUDED_VOICE_CHANNEL_IDS)
+
     for vc in guild.voice_channels:
+        # 除外チャンネルをスキップ
+        if vc.id in EXCLUDED_VOICE_CHANNEL_IDS:
+            print(f"[DEBUG] 除外VC: {vc.name} (ID: {vc.id})")
+            continue
+
         for member in vc.members:
-            if current.lower() in member.display_name.lower():
+            if current_lower in member.display_name.lower():
                 voice_members.append(member.display_name)
 
     print(f"[DELETE BOT]オートコンプリート候補: {voice_members[:25]}")

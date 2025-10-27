@@ -43,3 +43,20 @@ def debug_log(message):
     """DEBUG_MODE が True のときのみログを出力"""
     if DEBUG_MODE:
         print(f"[DEBUG] {message}")
+
+
+# ======== 大喜利bot 用設定 ========
+
+# 「お代出題チャンネル」に出すコントロールメッセージの設置先
+OGIRI_PROMPT_CHANNEL_ID = 123456789012345678  # ←サーバのテキストチャンネルIDに置き換え
+
+# 投稿を許可するテキストチャンネルのホワイトリスト
+# 空リスト [] の場合、Botが send_messages できる全テキストチャンネルを候補にします
+ALLOWED_DEST_CHANNEL_IDS = [
+    # 111111111111111111, 222222222222222222,
+]
+
+# 表示文言・見た目
+OGIRI_CONTROL_MESSAGE = "🎭 **大喜利・お題投下コントロール**\n下のボタンからモーダル入力 → 宛先選択 → 投下してね！"
+OGIRI_POST_TITLE = "【お題】"
+OGIRI_FOOTER_PREFIX = "出題者："

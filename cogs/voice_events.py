@@ -144,10 +144,25 @@ class VoiceEventsCog(commands.Cog):
         # ニックネーム優先、なければ表示名
         display_name = member.nick if member.nick else member.display_name
 
+        # 性別ロールIDを指定（サーバーに合わせて変更）
+        MALE_ROLE_ID = 1146540517019111597   # man🚹
+        FEMALE_ROLE_ID = 1146541261025718273 # woman🚺
+
+        # メンバーのロールID一覧を取得
+        member_role_ids = [role.id for role in member.roles]
+
+        # 色を判定
+        if MALE_ROLE_ID in member_role_ids:
+            embed_color = 0x206694  # 青（男性）
+        elif FEMALE_ROLE_ID in member_role_ids:
+            embed_color = 0xff00ff  # 赤（女性）
+        else:
+            embed_color = 0x2ECC71  # 緑（デフォルト）
+
         embed = discord.Embed(
             title=random_intro,
             description=f"[ ▶ プロフィールを表示]({message_link})",
-            color=0x2ECC71  # 緑
+            color=embed_color
         )
         embed.set_author(
             name=f'{display_name} が 入室したよ！',

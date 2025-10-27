@@ -18,6 +18,7 @@ async def load_cogs():
         "cogs.voice_events",
         "cogs.message_handler",
         "cogs.archive_manager",  # ✅ ArchiveManager を追加
+        # "cogs.ogiri",
     ]:
         try:
             await bot.load_extension(cog)

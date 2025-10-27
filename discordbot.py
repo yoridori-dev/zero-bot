@@ -23,6 +23,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 CATEGORY_NAME = "インチャテキスト"
 TARGET_VOICE_CHANNEL_ID = int(os.getenv("TARGET_VOICE_CHANNEL_ID", "0"))  # .env から取得、デフォルトは 0
 STOP_BUTTON_ONLY_COMMAND_USER = os.getenv("STOP_BUTTON_ONLY_COMMAND_USER", "False").lower() == "true"
+EXCLUDED_VOICE_CHANNEL_IDS = os.getenv("EXCLUDED_VOICE_CHANNEL_IDS")
 
 voice_text_mapping = {}  # ボイスチャンネルごとのテキストチャンネルを保存する辞書
 
@@ -48,13 +49,14 @@ async def voice_users_autocomplete(interaction: discord.Interaction, current: st
 
     print(f"[DEBUG] サーバー: {guild.name} (ID: {guild.id})")
 
-    # サーバー内のボイスチャンネルを取得
-    voice_channels = guild.voice_channels
-    print(f"[DEBUG] ボイスチャンネル数: {len(voice_channels)}")
+    # サーバー内のボイスチャンネル（除外IDを除く）を取得
+    all_voice_channels = guild.voice_channels
+    target_voice_channels = [vc for vc in all_voice_channels if vc.id not in EXCLUDED_VOICE_CHANNEL_IDS]
+    print(f"[DEBUG] ボイスチャンネル数: {len(target_voice_channels)}")
 
     # ボイスチャンネルにいるユーザーの取得
     voice_members = []
-    for vc in voice_channels:
+    for vc in target_voice_channels:
         print(f"[DEBUG] チャンネル: {vc.name} (ID: {vc.id}) メンバー数: {len(vc.members)}")
         for member in vc.members:
             print(f"[DEBUG] メンバー: {member.display_name} (ID: {member.id})")
