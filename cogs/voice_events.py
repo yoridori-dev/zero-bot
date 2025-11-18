@@ -3,6 +3,8 @@ import random
 import datetime
 import pytz
 import asyncio
+import logging
+import os
 
 from discord.ext import commands
 from utils.helpers import normalize_text_channel_name
@@ -10,7 +12,36 @@ from utils.channel_manager import ChannelManager
 from config import CATEGORY_NAME, EXCLUDED_CATEGORY_IDS, debug_log, MESSAGE_SOURCE_CHANNEL_IDS, LEAVE_MESSAGE_DELETE_EXCLUDED_CATEGORY_IDS
 from utils.helpers import load_profile_messages, save_profile_messages
 
+# タイムゾーン設定
 jst = pytz.timezone("Asia/Tokyo")
+
+# ログ保存ディレクトリとファイルパス
+log_dir = "log"
+os.makedirs(log_dir, exist_ok=True)
+today_str = datetime.datetime.now(jst).strftime("%Y%m%d")
+log_file_path = os.path.join(log_dir, f"message_handler_{today_str}.log")
+
+# ログローテート処理（3日より古いログを削除）
+for fname in os.listdir(log_dir):
+    if fname.startswith("message_handler_") and fname.endswith(".log"):
+        try:
+            date_str = fname.replace("message_handler_", "").replace(".log", "")
+            file_date = datetime.datetime.strptime(date_str, "%Y%m%d")
+            if (datetime.datetime.now(jst) - file_date).days > 2:
+                os.remove(os.path.join(log_dir, fname))
+        except Exception:
+            continue
+
+# ログ設定（ファイル出力）
+logger = logging.getLogger("message_handler")
+logger.setLevel(logging.INFO)
+
+# 重複防止
+if not logger.handlers:
+    file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 class VoiceEventsCog(commands.Cog):
     def __init__(self, bot):
@@ -29,7 +60,7 @@ class VoiceEventsCog(commands.Cog):
 
         # ✅ 退室処理
         if before.channel and before.channel != after.channel:
-            debug_log(f"[VOICE LEAVE] {member.display_name} が `{before.channel.name}` から退出")
+            logger.info(f"[VOICE LEAVE] {member.display_name} が `{before.channel.name}` から退出")
 
             if not self.is_excluded(before.channel):
                 text_channel = await self.channel_manager.get_or_create_text_channel(guild, before.channel)
@@ -72,7 +103,7 @@ class VoiceEventsCog(commands.Cog):
 
         # ✅ 入室処理
         if after.channel and before.channel != after.channel:
-            debug_log(f"[VOICE JOIN] {member.display_name} が `{after.channel.name}` に入室")
+            logger.info(f"[VOICE JOIN] {member.display_name} が `{after.channel.name}` に入室")
 
             if not self.is_excluded(after.channel):
                 text_channel = await self.channel_manager.get_or_create_text_channel(guild, after.channel)

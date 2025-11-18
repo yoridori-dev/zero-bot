@@ -14,6 +14,8 @@ channel_manager = ChannelManager(bot)  # ✅ ChannelManager を初期化
 async def load_cogs():
     """Cogをロード"""
     for cog in [
+        # ✅ 設定は一番最初にロード（他のCogが設定を参照できるように）
+        # "cogs.config_loader",
         "cogs.oyanmo",
         "cogs.voice_events",
         "cogs.message_handler",
@@ -67,5 +69,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n🛑 Bot が手動で停止されました！")
     finally:
-        loop.run_until_complete(bot.on_shutdown())  # ✅ シャットダウン時の処理を確実に実行
+        loop.run_until_complete(bot.on_shutdown())
         loop.close()
